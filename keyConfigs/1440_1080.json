@@ -1,0 +1,41 @@
+{
+    "key-config": [
+        {
+            "key-name": "center",
+            "key-event": "long-released",
+            "key-action": {
+                "action-type": "launch-app",
+                "action-param": {
+                    "package-name": "ai.fd.thinklet.app.lifelog",
+                    "class-name": "ai.fd.thinklet.app.lifelog.MainActivity",
+                    "action-name": "MAIN",
+                    "extras": [
+                        {
+                            "key-name": "longSide",
+                            "key-type": "int",
+                            "key-value": 1440
+                        },
+                        {
+                            "key-name": "shortSide",
+                            "key-type": "int",
+                            "key-value": 1080
+                        },
+                        {
+                            "key-name": "intervalSeconds",
+                            "key-type": "int",
+                            "key-value": 30
+                        },
+                        {
+                            "key-name": "enabledMic",
+                            "key-value": "false"
+                        }
+                    ],
+                    "flags": [
+                        "FLAG_ACTIVITY_NEW_TASK",
+                        "FLAG_ACTIVITY_CLEAR_TASK"
+                    ]
+                }
+            }
+        }
+    ]
+}
