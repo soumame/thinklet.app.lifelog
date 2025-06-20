@@ -15,6 +15,9 @@ cameraX = "1.4.1"
 kotlinx = "1.10.1"
 gifEncoder = "1.0.1"
 sdkAudio = "0.1.6"
+exifinterface = "1.3.7"
+awsS3 = "2.17.89"
+okHttp = "4.12.0"
 
 [libraries]
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
@@ -41,6 +44,10 @@ androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycl
 androidndkgif = { group = "io.github.waynejo", name = "androidndkgif", version.ref = "gifEncoder" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinx" }
 kotlinx-coroutines-guava = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-guava", version.ref = "kotlinx" }
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
+aws-s3 = { group = "software.amazon.awssdk", name = "s3", version.ref = "awsS3" }
+aws-s3-url-connection = { group = "software.amazon.awssdk", name = "url-connection-client", version.ref = "awsS3" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okHttp" }
 sdk-audio = { group = "ai.fd.thinklet", name = "sdk-audio", version.ref = "sdkAudio" }
 
 [plugins]

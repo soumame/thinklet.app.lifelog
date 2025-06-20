@@ -28,6 +28,30 @@
             {
               "key-name": "enabledMic",
               "key-value": "false"
+            },
+            {
+              "key-name": "s3Enabled",
+              "key-value": "true"
+            },
+            {
+              "key-name": "s3BucketName",
+              "key-value": "your-bucket-name"
+            },
+            {
+              "key-name": "s3Region",
+              "key-value": "ap-northeast-1"
+            },
+            {
+              "key-name": "s3AccessKey",
+              "key-value": "YOUR_ACCESS_KEY"
+            },
+            {
+              "key-name": "s3SecretKey",
+              "key-value": "YOUR_SECRET_KEY"
+            },
+            {
+              "key-name": "s3Endpoint",
+              "key-value": "https://your-s3-compatible-endpoint.com"
             }
           ],
           "flags": ["FLAG_ACTIVITY_NEW_TASK", "FLAG_ACTIVITY_CLEAR_TASK"]

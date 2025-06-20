@@ -4,7 +4,7 @@ import ai.fd.thinklet.app.lifelog.domain.MicRecordUseCase
 import ai.fd.thinklet.app.lifelog.domain.SnapshotUseCase
 import ai.fd.thinklet.library.lifelog.data.audioCapture.AudioCaptureRepository
 import ai.fd.thinklet.library.lifelog.data.file.FileSelectorRepository
-import ai.fd.thinklet.library.lifelog.data.gif.GifEncoderRepository
+import ai.fd.thinklet.library.lifelog.data.jpeg.JpegSaverRepository
 import ai.fd.thinklet.library.lifelog.data.mic.MicRepository
 import ai.fd.thinklet.library.lifelog.data.snapshot.SnapShotRepository
 import ai.fd.thinklet.library.lifelog.data.timer.TimerRepository
@@ -20,13 +20,13 @@ object UseCaseProvider {
     fun provideSnapshotUseCase(
         timerRepository: TimerRepository,
         snapShotRepository: SnapShotRepository,
-        gifEncoderRepository: GifEncoderRepository,
+        jpegSaverRepository: JpegSaverRepository,
         fileSelectorRepository: FileSelectorRepository
     ): SnapshotUseCase {
         return SnapshotUseCase(
             timerRepository,
             snapShotRepository,
-            gifEncoderRepository,
+            jpegSaverRepository,
             fileSelectorRepository
         )
     }

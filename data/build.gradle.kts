@@ -41,8 +41,12 @@ dependencies {
     implementation(libs.androidx.camera.core)
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.exifinterface)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.guava)
     implementation(libs.androidndkgif)
+    implementation(libs.aws.s3)
+    implementation(libs.aws.s3.url.connection)
+    implementation(libs.okhttp)
     implementation(libs.sdk.audio)
 }

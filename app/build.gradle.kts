@@ -39,6 +39,21 @@ android {
     buildFeatures {
         compose = true
     }
+    
+    packaging {
+        resources {
+            excludes += "/META-INF/INDEX.LIST"
+            excludes += "/META-INF/DEPENDENCIES"
+            excludes += "/META-INF/LICENSE"
+            excludes += "/META-INF/LICENSE.txt"
+            excludes += "/META-INF/NOTICE"
+            excludes += "/META-INF/NOTICE.txt"
+            excludes += "/META-INF/io.netty.versions.properties"
+            excludes += "/META-INF/MANIFEST.MF"
+            excludes += "/META-INF/versions/9/module-info.class"
+            excludes += "/org/apache/http/version.properties"
+        }
+    }
 }
 
 dependencies {

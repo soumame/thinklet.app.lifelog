@@ -6,6 +6,14 @@ import ai.fd.thinklet.library.lifelog.data.file.FileSelectorRepository
 import ai.fd.thinklet.library.lifelog.data.file.impl.FileSelectorRepositoryImpl
 import ai.fd.thinklet.library.lifelog.data.gif.GifEncoderRepository
 import ai.fd.thinklet.library.lifelog.data.gif.impl.GifEncoderRepositoryImpl
+import ai.fd.thinklet.library.lifelog.data.jpeg.JpegSaverRepository
+import ai.fd.thinklet.library.lifelog.data.jpeg.impl.JpegSaverRepositoryImpl
+import ai.fd.thinklet.library.lifelog.data.network.NetworkRepository
+import ai.fd.thinklet.library.lifelog.data.network.impl.NetworkRepositoryImpl
+import ai.fd.thinklet.library.lifelog.data.s3.S3UploadRepository
+import ai.fd.thinklet.library.lifelog.data.s3.impl.S3UploadRepositoryImpl
+import ai.fd.thinklet.library.lifelog.data.upload.UploadQueueRepository
+import ai.fd.thinklet.library.lifelog.data.upload.impl.UploadQueueRepositoryImpl
 import ai.fd.thinklet.library.lifelog.data.mic.MicRepository
 import ai.fd.thinklet.library.lifelog.data.mic.impl.MicRepositoryImpl
 import ai.fd.thinklet.library.lifelog.data.snapshot.SnapShotRepository
@@ -64,5 +72,36 @@ class RepositoryProvider {
     fun provideVibrate(
         @ApplicationContext context: Context,
     ): VibrateRepository = VibrateRepositoryImpl(context)
+
+    @Provides
+    @Singleton
+    fun provideNetwork(@ApplicationContext context: Context): NetworkRepository = 
+        NetworkRepositoryImpl(context)
+
+    @Provides
+    @Singleton
+    fun provideS3Upload(): S3UploadRepository = S3UploadRepositoryImpl()
+
+    @Provides
+    @Singleton
+    fun provideUploadQueue(
+        @ApplicationContext context: Context,
+        networkRepository: NetworkRepository,
+        s3UploadRepository: S3UploadRepository
+    ): UploadQueueRepository = UploadQueueRepositoryImpl(context, networkRepository, s3UploadRepository)
+
+    @Provides
+    @Singleton
+    fun provideJpegSaver(
+        fileSelectorRepository: FileSelectorRepository,
+        s3UploadRepository: S3UploadRepository,
+        networkRepository: NetworkRepository,
+        uploadQueueRepository: UploadQueueRepository
+    ): JpegSaverRepository = JpegSaverRepositoryImpl(
+        fileSelectorRepository, 
+        s3UploadRepository, 
+        networkRepository, 
+        uploadQueueRepository
+    )
 }
 
