@@ -46,13 +46,22 @@ class NetworkRepositoryImpl @Inject constructor(
             .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
             .build()
 
-        connectivityManager.registerNetworkCallback(request, callback)
-        
-        // 初回の状態を送信
-        trySend(isWifiConnected())
+        try {
+            connectivityManager.registerNetworkCallback(request, callback)
+            
+            // 初回の状態を送信
+            trySend(isWifiConnected())
+        } catch (e: Exception) {
+            Log.e(TAG, "Error registering network callback", e)
+            close(e)
+        }
 
         awaitClose {
-            connectivityManager.unregisterNetworkCallback(callback)
+            try {
+                connectivityManager.unregisterNetworkCallback(callback)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error unregistering network callback", e)
+            }
         }
     }.distinctUntilChanged()
 

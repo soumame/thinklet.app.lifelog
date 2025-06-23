@@ -14,7 +14,8 @@ data class LifeLogArgs(
     val s3AccessKey: String?,
     val s3SecretKey: String?,
     val s3Endpoint: String?,
-    val s3Enabled: Boolean
+    val s3Enabled: Boolean,
+    val storagePath: String?
 ) {
     val size: Size
         get() = Size(longSide, shortSide)
@@ -32,6 +33,7 @@ data class LifeLogArgs(
             s3SecretKey = bundle?.get("s3SecretKey")?.toString(),
             s3Endpoint = bundle?.get("s3Endpoint")?.toString(),
             s3Enabled = bundle?.get("s3Enabled")?.toString()?.toBooleanStrictOrNull() == true,
+            storagePath = bundle?.get("storagePath")?.toString(),
         )
     }
 }

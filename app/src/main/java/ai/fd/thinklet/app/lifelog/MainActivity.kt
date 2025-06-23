@@ -2,6 +2,8 @@ package ai.fd.thinklet.app.lifelog
 
 import ai.fd.thinklet.app.lifelog.domain.MicRecordUseCase
 import ai.fd.thinklet.app.lifelog.domain.SnapshotUseCase
+import ai.fd.thinklet.library.lifelog.data.file.FileSelectorRepository
+import ai.fd.thinklet.library.lifelog.data.file.impl.FileSelectorRepositoryImpl
 import ai.fd.thinklet.library.lifelog.data.network.NetworkRepository
 import ai.fd.thinklet.library.lifelog.data.s3.S3UploadRepository
 import ai.fd.thinklet.library.lifelog.data.upload.UploadQueueRepository
@@ -40,6 +42,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var uploadQueueRepository: UploadQueueRepository
 
+    @Inject
+    lateinit var fileSelectorRepository: FileSelectorRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -57,6 +62,12 @@ class MainActivity : ComponentActivity() {
 
         val options = LifeLogArgs.get(intent.extras)
         Log.i(TAG, "options $options")
+        
+        // ストレージパスの設定
+        if (!options.storagePath.isNullOrEmpty()) {
+            (fileSelectorRepository as FileSelectorRepositoryImpl).setStoragePath(options.storagePath)
+            Log.i(TAG, "Custom storage path set: ${options.storagePath}")
+        }
         
         // S3設定の初期化
         if (options.s3Enabled && 

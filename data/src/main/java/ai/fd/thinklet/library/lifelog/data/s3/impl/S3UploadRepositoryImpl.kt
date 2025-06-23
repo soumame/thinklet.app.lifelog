@@ -90,10 +90,18 @@ class S3UploadRepositoryImpl @Inject constructor() : S3UploadRepository {
             }
 
             // S3にアップロード
+            // ファイル拡張子に基づいてContent-Typeを決定
+            val contentType = when (file.extension.lowercase()) {
+                "jpg", "jpeg" -> "image/jpeg"
+                "mp3" -> "audio/mpeg"
+                "raw" -> "audio/raw"
+                else -> "application/octet-stream"
+            }
+
             val putObjectRequest = PutObjectRequest.builder()
                 .bucket(bucket)
                 .key(objectKey)
-                .contentType("image/jpeg")
+                .contentType(contentType)
                 .build()
 
             val requestBody = RequestBody.fromFile(file)

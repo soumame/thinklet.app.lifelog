@@ -1,5 +1,7 @@
 package ai.fd.thinklet.library.lifelog.data
 
+import ai.fd.thinklet.library.lifelog.data.audio.AudioProcessorRepository
+import ai.fd.thinklet.library.lifelog.data.audio.impl.AudioProcessorRepositoryImpl
 import ai.fd.thinklet.library.lifelog.data.audioCapture.AudioCaptureRepository
 import ai.fd.thinklet.library.lifelog.data.audioCapture.impl.AudioCaptureRepositoryImpl
 import ai.fd.thinklet.library.lifelog.data.file.FileSelectorRepository
@@ -101,6 +103,20 @@ class RepositoryProvider {
         fileSelectorRepository, 
         s3UploadRepository, 
         networkRepository, 
+        uploadQueueRepository
+    )
+
+    @Provides
+    @Singleton
+    fun provideAudioProcessor(
+        @ApplicationContext context: Context,
+        networkRepository: NetworkRepository,
+        s3UploadRepository: S3UploadRepository,
+        uploadQueueRepository: UploadQueueRepository
+    ): AudioProcessorRepository = AudioProcessorRepositoryImpl(
+        context,
+        networkRepository,
+        s3UploadRepository,
         uploadQueueRepository
     )
 }

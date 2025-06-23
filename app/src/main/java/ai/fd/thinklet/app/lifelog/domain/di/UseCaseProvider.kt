@@ -2,6 +2,7 @@ package ai.fd.thinklet.app.lifelog.domain.di
 
 import ai.fd.thinklet.app.lifelog.domain.MicRecordUseCase
 import ai.fd.thinklet.app.lifelog.domain.SnapshotUseCase
+import ai.fd.thinklet.library.lifelog.data.audio.AudioProcessorRepository
 import ai.fd.thinklet.library.lifelog.data.audioCapture.AudioCaptureRepository
 import ai.fd.thinklet.library.lifelog.data.file.FileSelectorRepository
 import ai.fd.thinklet.library.lifelog.data.jpeg.JpegSaverRepository
@@ -35,12 +36,14 @@ object UseCaseProvider {
     fun provideMicRecordUseCase(
         micRepository: MicRepository,
         audioCaptureRepository: AudioCaptureRepository,
-        fileSelectorRepository: FileSelectorRepository
+        fileSelectorRepository: FileSelectorRepository,
+        audioProcessorRepository: AudioProcessorRepository
     ): MicRecordUseCase {
         return MicRecordUseCase(
             micRepository,
             audioCaptureRepository,
-            fileSelectorRepository
+            fileSelectorRepository,
+            audioProcessorRepository
         )
     }
 }

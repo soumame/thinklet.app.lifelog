@@ -48,7 +48,7 @@ adb push keyConfigs/1440_1080.json /sdcard/Android/data/ai.fd.thinklet.app.launc
 # 2592x1944 with microphone
 adb push keyConfigs/2592_1944_withMic.json /sdcard/Android/data/ai.fd.thinklet.app.launcher/files/key_config.json && adb reboot
 
-# 1440x1080 with S3 upload (edit S3 credentials first)
+# 1440x1080 with S3 upload and custom storage path (edit S3 credentials first)
 adb push keyConfigs/1440_1080_withS3.json /sdcard/Android/data/ai.fd.thinklet.app.launcher/files/key_config.json && adb reboot
 ```
 
@@ -81,7 +81,8 @@ The project follows Clean Architecture with modular design:
 - `JpegSaverRepository` - JPEG file saving with EXIF metadata
 - `MicRepository` - 5-channel microphone recording
 - `AudioCaptureRepository` - Audio processing and file management
-- `FileSelectorRepository` - File management and MTP deployment
+- `AudioProcessorRepository` - RAW to MP3 conversion and S3 upload
+- `FileSelectorRepository` - File management, MTP deployment, and custom storage paths
 - `TimerRepository` - Interval timing for periodic capture
 - `VibrateRepository` - Device vibration feedback
 
@@ -101,17 +102,21 @@ The app accepts launch parameters via Android Intent extras:
 | `s3AccessKey` | String | null | AWS access key |
 | `s3SecretKey` | String | null | AWS secret key |
 | `s3Endpoint` | String | null | Custom S3 endpoint URL (for S3-compatible services) |
+| `storagePath` | String | null | Custom storage path (e.g., "/storage/33C1-1615/DCIM" for SD card) |
 
 ## File Output Structure
 
 ### Local Storage
-Files are saved to: `/DCIM/lifelog/YYYYMMDD/`
-- JPEG files: Saved with filename format `YYYY-MM-DD-HHMMSS.jpg` including EXIF metadata
-- Audio files: Max 1GB per file before rotating to new files
+Files are saved to: `/DCIM/lifelog/YYYYMMDD/` (or custom `storagePath` if specified)
+- **JPEG files**: Saved with filename format `YYYY-MM-DD-HHMMSS.jpg` including EXIF metadata
+- **Audio files**: RAW files converted to MP3 format with filename `YYYY-MM-DD-HHMMSS.mp3` based on recording start time
+- **File rotation**: Max 1GB per audio file before rotating to new files
+- **External storage**: Supports SD card storage via `storagePath` parameter
 
 ### S3 Storage (Optional)
-When S3 is enabled, JPEG files are automatically uploaded to:
-- S3 path: `lifelog/YYYY/MM/DD/YYYY-MM-DD-HHMMSS.jpg`
+When S3 is enabled, both JPEG and MP3 files are automatically uploaded to:
+- **JPEG path**: `lifelog/YYYY/MM/DD/YYYY-MM-DD-HHMMSS.jpg`
+- **Audio path**: `audio/YYYY/MM/DD/YYYY-MM-DD-HHMMSS.mp3`
 - **S3-compatible services**: Supports AWS S3, MinIO, Cloudflare R2, and other S3-compatible storage
 - **Custom endpoints**: Use `s3Endpoint` parameter for non-AWS services (leave empty for AWS S3)
 - **WiFi-only uploads**: Files are only uploaded when connected to WiFi (no mobile data usage)
@@ -137,8 +142,15 @@ Each JPEG file includes the following EXIF metadata:
 
 ### File Upload Events
 To extend functionality when files are saved, modify the saved event handlers in:
-- `SnapshotUseCase.kt` (line ~24-27): `jpegSaverRepository.savedEvent`
-- `MicRecordUseCase.kt` (line ~51-54): `audioCaptureRepository.savedEvent`
+- `SnapshotUseCase.kt`: `jpegSaverRepository.savedEvent` for JPEG files
+- `MicRecordUseCase.kt`: `audioCaptureRepository.savedEvent` for RAW audio files
+- `AudioProcessorRepositoryImpl`: `audioProcessorRepository.savedEvent` for MP3 conversion completion
+
+### Audio File Processing
+- **RAW to MP3 conversion**: Audio files are automatically converted from RAW format to MP3
+- **Recording timestamp**: MP3 filenames use the recording start time, not conversion time
+- **S3 upload**: MP3 files are uploaded with `audio/` prefix in S3 bucket structure
+- **Content-Type detection**: Automatic MIME type detection for S3 uploads (JPEG: `image/jpeg`, MP3: `audio/mpeg`)
 
 ### Namespace
 - Main app: `ai.fd.thinklet.app.lifelog`
