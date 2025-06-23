@@ -21,13 +21,12 @@ class MicRecordUseCase @Inject constructor(
     private val audioProcessorRepository: AudioProcessorRepository
 ) {
     init {
-        audioCaptureRepository.savedEvent { rawFile ->
-            Log.i(TAG, "savedEvent mic: ${rawFile.absoluteFile}")
+        audioCaptureRepository.savedEvent { rawFile, recordingStartTime ->
+            Log.i(TAG, "savedEvent mic: ${rawFile.absoluteFile}, recording started at: $recordingStartTime")
             fileSelectorRepository.deploy(rawFile)
             
             // RAWファイルをMP3に変換してS3にアップロード
             GlobalScope.launch {
-                val recordingStartTime = System.currentTimeMillis() // 実際は録音開始時刻を取得
                 audioProcessorRepository.processRawToMp3(rawFile, recordingStartTime)
                     .onSuccess { mp3File ->
                         Log.i(TAG, "Audio converted to MP3: ${mp3File.name}")

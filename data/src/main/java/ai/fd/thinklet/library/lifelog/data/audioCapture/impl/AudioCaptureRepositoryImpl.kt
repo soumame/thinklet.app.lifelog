@@ -11,15 +11,23 @@ internal class AudioCaptureRepositoryImpl @Inject constructor(
     private var callback: AudioCaptureRepository.AudioCaptureCallback? = null
     private var file: File? = null
     private var recordingStartTime: Long = 0
+    private var currentFileStartTime: Long = 0
 
     override fun pushPcm(data: ByteArray) {
-        if (file?.isFileSizeLimited() == true) {
-            file?.also { callback?.onSavedFile(it) }
+        val currentTime = System.currentTimeMillis()
+        
+        // Check if we need to create a new file (size limit or time limit)
+        if (file?.shouldRotate(currentTime - currentFileStartTime) == true) {
+            file?.also { callback?.onSavedFile(it, currentFileStartTime) }
             file = fileSelectorRepository.audioPath()
-            recordingStartTime = System.currentTimeMillis()
+            currentFileStartTime = currentTime
+            if (recordingStartTime == 0L) {
+                recordingStartTime = currentTime
+            }
         } else if (file == null) {
             file = fileSelectorRepository.audioPath()
-            recordingStartTime = System.currentTimeMillis()
+            recordingStartTime = currentTime
+            currentFileStartTime = currentTime
         }
         file?.appendBytes(data)
     }
@@ -29,15 +37,22 @@ internal class AudioCaptureRepositoryImpl @Inject constructor(
     }
 
     override fun close() {
-        file?.also { callback?.onSavedFile(it) }
+        file?.also { callback?.onSavedFile(it, currentFileStartTime) }
         file = null
     }
 
     private companion object {
         const val TAG = "AudioCaptureRepository"
-        const val LIMIT = 1L * 1000 * 1000 * 1000
-        fun File.isFileSizeLimited(): Boolean {
-            return this.exists() && this.isFile && this.length() >= LIMIT
+        // 10MB limit for audio files
+        const val SIZE_LIMIT = 10L * 1024 * 1024  // 10MB
+        // 10 minutes time limit
+        const val TIME_LIMIT_MS = 10L * 60 * 1000  // 10 minutes in milliseconds
+        
+        fun File.shouldRotate(elapsedTimeMs: Long): Boolean {
+            // Rotate if file size exceeds 10MB OR recording time exceeds 10 minutes
+            val sizeExceeded = this.exists() && this.isFile && this.length() >= SIZE_LIMIT
+            val timeExceeded = elapsedTimeMs >= TIME_LIMIT_MS
+            return sizeExceeded || timeExceeded
         }
     }
 }

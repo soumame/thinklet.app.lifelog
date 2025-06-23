@@ -7,10 +7,10 @@ import java.io.File
  */
 interface AudioCaptureRepository {
     /**
-     * 保存先ファイル変更のイベント
+     * 保存先ファイル変更のイベント（ファイルと録音開始時刻を含む）
      */
     fun interface AudioCaptureCallback {
-        fun onSavedFile(file: File)
+        fun onSavedFile(file: File, recordingStartTime: Long)
     }
 
     /**
