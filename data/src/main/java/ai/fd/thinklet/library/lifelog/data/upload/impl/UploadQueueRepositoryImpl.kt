@@ -78,10 +78,25 @@ class UploadQueueRepositoryImpl @Inject constructor(
 
         filesToUpload.forEach { file ->
             try {
-                s3UploadRepository.uploadFile(file)
+                // ファイル拡張子に基づいてS3キープレフィックスを決定
+                val keyPrefix = when (file.extension.lowercase()) {
+                    "mp3", "m4a", "aac", "wav" -> "audio"
+                    "jpg", "jpeg", "png", "gif" -> "" // 画像は既存のロジックでlifelog/YYYY/MM/DDパスが使用される
+                    else -> ""
+                }
+                
+                val uploadResult = if (keyPrefix.isNotEmpty()) {
+                    s3UploadRepository.uploadFile(file, keyPrefix)
+                } else {
+                    s3UploadRepository.uploadFile(file)
+                }
+                
+                uploadResult
                     .onSuccess { s3Url ->
                         Log.i(TAG, "Successfully uploaded: ${file.name} to $s3Url")
                         removeFile(file)
+                        // アップロード成功後のファイル削除ポリシーの統一
+                        // 現在は画像も音声もローカルファイルを保持
                     }
                     .onFailure { error ->
                         Log.w(TAG, "Failed to upload: ${file.name}", error)

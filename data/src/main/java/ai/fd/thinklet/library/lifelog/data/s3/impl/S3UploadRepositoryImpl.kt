@@ -91,9 +91,13 @@ class S3UploadRepositoryImpl @Inject constructor() : S3UploadRepository {
 
             // S3にアップロード
             // ファイル拡張子に基づいてContent-Typeを決定
+            // 注意: .mp3拡張子だが実際の内容はAAC/M4Aの場合はaudio/mp4として扱う
             val contentType = when (file.extension.lowercase()) {
                 "jpg", "jpeg" -> "image/jpeg"
-                "mp3" -> "audio/mpeg"
+                "mp3" -> "audio/mp4"  // 実際はAAC/M4A形式のため
+                "m4a" -> "audio/mp4"
+                "aac" -> "audio/aac"
+                "wav" -> "audio/wav"
                 "raw" -> "audio/raw"
                 else -> "application/octet-stream"
             }

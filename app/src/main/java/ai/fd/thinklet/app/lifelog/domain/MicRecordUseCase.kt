@@ -21,18 +21,22 @@ class MicRecordUseCase @Inject constructor(
     private val audioProcessorRepository: AudioProcessorRepository
 ) {
     init {
-        audioCaptureRepository.savedEvent { rawFile, recordingStartTime ->
-            Log.i(TAG, "savedEvent mic: ${rawFile.absoluteFile}, recording started at: $recordingStartTime")
-            fileSelectorRepository.deploy(rawFile)
+        audioCaptureRepository.savedEvent { tempWavFile, recordingStartTime ->
+            Log.i(TAG, "10-minute recording period completed: ${tempWavFile.absolutePath}, started at: $recordingStartTime")
             
-            // RAWファイルをMP3に変換してS3にアップロード
+            // 10分間録音されたtemp.wavをMP3に変換してS3にアップロード
             GlobalScope.launch {
-                audioProcessorRepository.processRawToMp3(rawFile, recordingStartTime)
+                audioProcessorRepository.processWavToMp3(tempWavFile, recordingStartTime)
                     .onSuccess { mp3File ->
-                        Log.i(TAG, "Audio converted to MP3: ${mp3File.name}")
+                        Log.i(TAG, "Audio converted to MP3 for S3 upload: ${mp3File.name}")
+                        
+                        // 注意: temp.wavファイルは次の録音セッションで再利用されるため、
+                        // ここでは削除せず、次のローテーション時に上書きされる
+                        Log.d(TAG, "temp.wav will be reused for next recording session")
                     }
                     .onFailure { error ->
-                        Log.e(TAG, "Failed to convert audio to MP3", error)
+                        Log.e(TAG, "Failed to convert temp.wav to MP3", error)
+                        // 変換失敗時でもtemp.wavは保持（次の録音で再利用）
                     }
             }
         }

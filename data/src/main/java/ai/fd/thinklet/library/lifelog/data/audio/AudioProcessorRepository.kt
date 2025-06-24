@@ -14,9 +14,9 @@ interface AudioProcessorRepository {
     }
 
     /**
-     * RAWファイルをMP3に変換してS3にアップロード
+     * WAVファイルをMP3に変換してS3にアップロード
      */
-    suspend fun processRawToMp3(rawFile: File, recordingStartTime: Long): Result<File>
+    suspend fun processWavToMp3(wavFile: File, recordingStartTime: Long): Result<File>
 
     /**
      * 保存完了のコールバックを設定

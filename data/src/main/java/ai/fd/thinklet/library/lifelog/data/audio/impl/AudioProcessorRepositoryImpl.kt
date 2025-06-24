@@ -1,6 +1,7 @@
 package ai.fd.thinklet.library.lifelog.data.audio.impl
 
 import ai.fd.thinklet.library.lifelog.data.audio.AudioProcessorRepository
+import ai.fd.thinklet.library.lifelog.data.audio.Mp3Encoder
 import ai.fd.thinklet.library.lifelog.data.network.NetworkRepository
 import ai.fd.thinklet.library.lifelog.data.s3.S3UploadRepository
 import ai.fd.thinklet.library.lifelog.data.upload.UploadQueueRepository
@@ -28,39 +29,44 @@ class AudioProcessorRepositoryImpl @Inject constructor(
 
     private var callback: AudioProcessorRepository.AudioProcessorCallback? = null
 
-    override suspend fun processRawToMp3(rawFile: File, recordingStartTime: Long): Result<File> = withContext(Dispatchers.IO) {
+    override suspend fun processWavToMp3(wavFile: File, recordingStartTime: Long): Result<File> = withContext(Dispatchers.IO) {
         try {
-            if (!rawFile.exists()) {
-                return@withContext Result.failure(IllegalArgumentException("RAW file does not exist: ${rawFile.absolutePath}"))
+            if (!wavFile.exists()) {
+                return@withContext Result.failure(IllegalArgumentException("WAV file does not exist: ${wavFile.absolutePath}"))
             }
 
-            // MP3ファイル名を生成
+            // MP3ファイル名を生成（S3アップロード用）
             val mp3FileName = generateMp3FileName(recordingStartTime)
-            val mp3File = File(rawFile.parent, mp3FileName)
+            val mp3File = File(wavFile.parent, mp3FileName)
 
-            // 現在はRAWファイルをMP3としてリネーム（実際のMP3変換は実装が複雑なため）
-            // 実際のプロダクションではFFmpegやMediaMuxerを使用してMP3変換を行う
-            if (rawFile.renameTo(mp3File)) {
-                Log.i(TAG, "Audio file renamed to MP3 format: ${mp3File.name}")
+            // WAVからM4A（AAC）への変換（64kbps）
+            val conversionResult = Mp3Encoder.convertWavToMp3(wavFile, mp3File)
+            
+            if (conversionResult.isSuccess) {
+                Log.i(TAG, "Successfully converted WAV to AAC (.mp3): ${mp3File.name} (${mp3File.length()} bytes)")
                 
-                // S3アップロード処理
+                // S3アップロード処理（S3設定が存在する場合のみ）
                 if (s3UploadRepository.isConfigured()) {
                     if (networkRepository.isWifiConnected()) {
                         // WiFi接続中の場合は即座にアップロード
                         s3UploadRepository.uploadFile(mp3File, "audio")
                             .onSuccess { s3Url ->
                                 Log.i(TAG, "Audio file uploaded to S3: $s3Url")
+                                // 画像と同様に、アップロード成功後もファイルを保持
+                                // （UploadQueueRepositoryがキューから削除を管理）
                             }
                             .onFailure { error ->
-                                Log.w(TAG, "Failed to upload audio file to S3", error)
-                                // 失敗した場合はキューに追加
+                                Log.w(TAG, "Failed to upload audio file to S3, adding to queue", error)
+                                // アップロードに失敗した場合はキューに追加
                                 uploadQueueRepository.enqueueFile(mp3File)
                             }
                     } else {
                         // WiFi未接続の場合はキューに追加
+                        Log.d(TAG, "Not connected to WiFi, adding audio to upload queue")
                         uploadQueueRepository.enqueueFile(mp3File)
-                        Log.d(TAG, "Audio file queued for upload: ${mp3File.name}")
                     }
+                } else {
+                    Log.d(TAG, "S3 upload not configured - audio file saved locally: ${mp3File.name}")
                 }
                 
                 // コールバック通知
@@ -68,10 +74,11 @@ class AudioProcessorRepositoryImpl @Inject constructor(
                 
                 Result.success(mp3File)
             } else {
-                Result.failure(Exception("Failed to rename RAW file to MP3"))
+                // 変換失敗
+                Result.failure(conversionResult.exceptionOrNull() ?: Exception("Failed to convert WAV to MP3"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error processing RAW to MP3", e)
+            Log.e(TAG, "Error processing WAV to MP3", e)
             Result.failure(e)
         }
     }

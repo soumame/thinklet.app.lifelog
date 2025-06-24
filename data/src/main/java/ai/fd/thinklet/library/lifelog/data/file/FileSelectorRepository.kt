@@ -11,6 +11,16 @@ interface FileSelectorRepository {
      * 音声ファイルのパスを取得する
      */
     fun audioPath(): File?
+    
+    /**
+     * WAVファイルのパスを取得する
+     */
+    fun wavPath(): File?
+    
+    /**
+     * 一時WAVファイルのパスを取得する
+     */
+    fun tempWavPath(): File?
 
     /**
      * 画像(GIF)ファイルのパスを取得する

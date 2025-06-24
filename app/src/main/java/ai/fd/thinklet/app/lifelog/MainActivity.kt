@@ -8,9 +8,14 @@ import ai.fd.thinklet.library.lifelog.data.network.NetworkRepository
 import ai.fd.thinklet.library.lifelog.data.s3.S3UploadRepository
 import ai.fd.thinklet.library.lifelog.data.upload.UploadQueueRepository
 import ai.fd.thinklet.app.lifelog.ui.theme.LifelogTheme
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.WindowManager
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -27,6 +32,13 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    
+    private var pendingRecordingStart = false
+    
+    companion object {
+        private const val AUDIO_PERMISSION_REQUEST_CODE = 1001
+        private const val TAG = "MainActivity"
+    }
     @Inject
     lateinit var snapshotUseCase: SnapshotUseCase
 
@@ -94,9 +106,12 @@ class MainActivity : ComponentActivity() {
                     snapshotUseCase(size = options.size, intervalSeconds = options.intervalSeconds)
                 }
             }
+            // 音声録音のハンドリング
             launch {
                 repeatOnLifecycle(Lifecycle.State.STARTED) {
-                    if (options.enabledMic) micRecordUseCase()
+                    if (options.enabledMic) {
+                        startRecordingWithPermissionCheck()
+                    }
                 }
             }
             // WiFi接続状態の監視とアップロードキューの処理
@@ -116,8 +131,45 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
-    private companion object {
-        const val TAG = "MainActivity"
+    
+    private suspend fun startRecordingWithPermissionCheck() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) 
+            == PackageManager.PERMISSION_GRANTED) {
+            Log.i(TAG, "Audio permission granted, starting recording")
+            micRecordUseCase()
+        } else {
+            Log.i(TAG, "Audio permission not granted, requesting permission")
+            pendingRecordingStart = true
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.RECORD_AUDIO),
+                    AUDIO_PERMISSION_REQUEST_CODE
+                )
+            }
+        }
+    }
+    
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        
+        if (requestCode == AUDIO_PERMISSION_REQUEST_CODE) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Log.i(TAG, "Audio permission granted by user")
+                if (pendingRecordingStart) {
+                    pendingRecordingStart = false
+                    lifecycleScope.launch {
+                        micRecordUseCase()
+                    }
+                }
+            } else {
+                Log.w(TAG, "Audio permission denied by user")
+                pendingRecordingStart = false
+            }
+        }
     }
 }

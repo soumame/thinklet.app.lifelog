@@ -109,14 +109,14 @@ The app accepts launch parameters via Android Intent extras:
 ### Local Storage
 Files are saved to: `/DCIM/lifelog/YYYYMMDD/` (or custom `storagePath` if specified)
 - **JPEG files**: Saved with filename format `YYYY-MM-DD-HHMMSS.jpg` including EXIF metadata
-- **Audio files**: RAW files converted to MP3 format with filename `YYYY-MM-DD-HHMMSS.mp3` based on recording start time
+- **Audio files**: Temporary WAV files (10 minutes max) converted to M4A format (64kbps AAC) with filename `YYYY-MM-DD-HHMMSS.m4a` based on recording start time
 - **File rotation**: Max 1GB per audio file before rotating to new files
 - **External storage**: Supports SD card storage via `storagePath` parameter
 
 ### S3 Storage (Optional)
 When S3 is enabled, both JPEG and MP3 files are automatically uploaded to:
 - **JPEG path**: `lifelog/YYYY/MM/DD/YYYY-MM-DD-HHMMSS.jpg`
-- **Audio path**: `audio/YYYY/MM/DD/YYYY-MM-DD-HHMMSS.mp3`
+- **Audio path**: `audio/YYYY/MM/DD/YYYY-MM-DD-HHMMSS.m4a`
 - **S3-compatible services**: Supports AWS S3, MinIO, Cloudflare R2, and other S3-compatible storage
 - **Custom endpoints**: Use `s3Endpoint` parameter for non-AWS services (leave empty for AWS S3)
 - **WiFi-only uploads**: Files are only uploaded when connected to WiFi (no mobile data usage)
@@ -147,10 +147,13 @@ To extend functionality when files are saved, modify the saved event handlers in
 - `AudioProcessorRepositoryImpl`: `audioProcessorRepository.savedEvent` for MP3 conversion completion
 
 ### Audio File Processing
-- **RAW to MP3 conversion**: Audio files are automatically converted from RAW format to MP3
-- **Recording timestamp**: MP3 filenames use the recording start time, not conversion time
-- **S3 upload**: MP3 files are uploaded with `audio/` prefix in S3 bucket structure
-- **Content-Type detection**: Automatic MIME type detection for S3 uploads (JPEG: `image/jpeg`, MP3: `audio/mpeg`)
+- **Temporary WAV recording**: Audio is recorded as temporary WAV files for reliability
+- **File rotation**: Automatic file rotation every 10 minutes
+- **M4A conversion**: Temporary WAV files are converted to M4A (64kbps AAC) for upload, then deleted
+- **Cleanup**: Temporary WAV files are automatically deleted after successful conversion
+- **Recording timestamp**: M4A filenames use the recording start time, not conversion time
+- **S3 upload**: M4A files are uploaded with `audio/` prefix in S3 bucket structure
+- **Content-Type detection**: Automatic MIME type detection for S3 uploads (JPEG: `image/jpeg`, M4A: `audio/mp4`)
 
 ### Namespace
 - Main app: `ai.fd.thinklet.app.lifelog`
