@@ -15,7 +15,10 @@ data class LifeLogArgs(
     val s3SecretKey: String?,
     val s3Endpoint: String?,
     val s3Enabled: Boolean,
-    val storagePath: String?
+    val storagePath: String?,
+    val httpUploadEnabled: Boolean,
+    val httpUploadUrl: String?,
+    val httpUploadApiKey: String?
 ) {
     val size: Size
         get() = Size(longSide, shortSide)
@@ -34,6 +37,9 @@ data class LifeLogArgs(
             s3Endpoint = bundle?.get("s3Endpoint")?.toString(),
             s3Enabled = bundle?.get("s3Enabled")?.toString()?.toBooleanStrictOrNull() == true,
             storagePath = bundle?.get("storagePath")?.toString(),
+            httpUploadEnabled = bundle?.get("httpUploadEnabled")?.toString()?.toBooleanStrictOrNull() == true,
+            httpUploadUrl = bundle?.get("httpUploadUrl")?.toString(),
+            httpUploadApiKey = bundle?.get("httpUploadApiKey")?.toString(),
         )
     }
 }

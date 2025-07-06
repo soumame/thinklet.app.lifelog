@@ -4,6 +4,7 @@ import ai.fd.thinklet.app.lifelog.domain.MicRecordUseCase
 import ai.fd.thinklet.app.lifelog.domain.SnapshotUseCase
 import ai.fd.thinklet.library.lifelog.data.file.FileSelectorRepository
 import ai.fd.thinklet.library.lifelog.data.file.impl.FileSelectorRepositoryImpl
+import ai.fd.thinklet.library.lifelog.data.http.HttpUploadRepository
 import ai.fd.thinklet.library.lifelog.data.network.NetworkRepository
 import ai.fd.thinklet.library.lifelog.data.s3.S3UploadRepository
 import ai.fd.thinklet.library.lifelog.data.upload.UploadQueueRepository
@@ -49,6 +50,9 @@ class MainActivity : ComponentActivity() {
     lateinit var s3UploadRepository: S3UploadRepository
 
     @Inject
+    lateinit var httpUploadRepository: HttpUploadRepository
+
+    @Inject
     lateinit var networkRepository: NetworkRepository
 
     @Inject
@@ -81,8 +85,18 @@ class MainActivity : ComponentActivity() {
             Log.i(TAG, "Custom storage path set: ${options.storagePath}")
         }
         
-        // S3設定の初期化
-        if (options.s3Enabled && 
+        // HTTPアップロード設定の初期化（優先）
+        if (options.httpUploadEnabled && 
+            !options.httpUploadUrl.isNullOrEmpty() && 
+            !options.httpUploadApiKey.isNullOrEmpty()) {
+            httpUploadRepository.configure(
+                uploadUrl = options.httpUploadUrl,
+                apiKey = options.httpUploadApiKey
+            )
+            Log.i(TAG, "HTTP upload configured for URL: ${options.httpUploadUrl}")
+        }
+        // S3設定の初期化（HTTPが設定されていない場合のみ有効）
+        else if (options.s3Enabled && 
             !options.s3BucketName.isNullOrEmpty() && 
             !options.s3Region.isNullOrEmpty() && 
             !options.s3AccessKey.isNullOrEmpty() && 
@@ -97,7 +111,7 @@ class MainActivity : ComponentActivity() {
             val endpointInfo = if (options.s3Endpoint.isNullOrEmpty()) "AWS S3" else "Custom endpoint: ${options.s3Endpoint}"
             Log.i(TAG, "S3 upload configured for bucket: ${options.s3BucketName} ($endpointInfo)")
         } else {
-            Log.i(TAG, "S3 upload disabled or not properly configured")
+            Log.i(TAG, "Upload disabled or not properly configured")
         }
         
         lifecycleScope.launch {
@@ -115,7 +129,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             // WiFi接続状態の監視とアップロードキューの処理
-            if (options.s3Enabled) {
+            if (options.httpUploadEnabled || options.s3Enabled) {
                 launch {
                     repeatOnLifecycle(Lifecycle.State.STARTED) {
                         networkRepository.isWifiConnectedFlow().collect { isWifiConnected ->

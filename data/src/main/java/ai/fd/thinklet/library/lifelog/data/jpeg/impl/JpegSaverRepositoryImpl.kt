@@ -1,6 +1,7 @@
 package ai.fd.thinklet.library.lifelog.data.jpeg.impl
 
 import ai.fd.thinklet.library.lifelog.data.file.FileSelectorRepository
+import ai.fd.thinklet.library.lifelog.data.http.HttpUploadRepository
 import ai.fd.thinklet.library.lifelog.data.jpeg.JpegSaverCallback
 import ai.fd.thinklet.library.lifelog.data.jpeg.JpegSaverRepository
 import ai.fd.thinklet.library.lifelog.data.network.NetworkRepository
@@ -21,6 +22,7 @@ import javax.inject.Inject
 class JpegSaverRepositoryImpl @Inject constructor(
     private val fileSelectorRepository: FileSelectorRepository,
     private val s3UploadRepository: S3UploadRepository,
+    private val httpUploadRepository: HttpUploadRepository,
     private val networkRepository: NetworkRepository,
     private val uploadQueueRepository: UploadQueueRepository
 ) : JpegSaverRepository {
@@ -48,8 +50,27 @@ class JpegSaverRepositoryImpl @Inject constructor(
             
             Log.i(TAG, "JPEG saved successfully: ${file.absolutePath}")
             
-            // S3アップロード（設定されている場合）
-            if (s3UploadRepository.isConfigured()) {
+            // HTTPアップロード（設定されている場合）
+            if (httpUploadRepository.isConfigured()) {
+                if (networkRepository.isWifiConnected()) {
+                    // WiFi接続中の場合は即座にアップロード
+                    httpUploadRepository.uploadFile(file)
+                        .onSuccess { response ->
+                            Log.i(TAG, "JPEG uploaded via HTTP: $response")
+                        }
+                        .onFailure { error ->
+                            Log.w(TAG, "Failed to upload JPEG via HTTP, adding to queue", error)
+                            // アップロードに失敗した場合はキューに追加
+                            uploadQueueRepository.enqueueFile(file)
+                        }
+                } else {
+                    // WiFi未接続の場合はキューに追加
+                    Log.d(TAG, "Not connected to WiFi, adding JPEG to upload queue")
+                    uploadQueueRepository.enqueueFile(file)
+                }
+            }
+            // S3アップロード（設定されている場合、HTTPが設定されていない場合のみ）
+            else if (s3UploadRepository.isConfigured()) {
                 if (networkRepository.isWifiConnected()) {
                     // WiFi接続中の場合は即座にアップロード
                     s3UploadRepository.uploadFile(file)

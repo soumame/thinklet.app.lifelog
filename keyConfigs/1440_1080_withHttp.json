@@ -1,0 +1,50 @@
+{
+  "key-config": [
+    {
+      "key-name": "center",
+      "key-event": "long-released",
+      "key-action": {
+        "action-type": "launch-app",
+        "action-param": {
+          "package-name": "ai.fd.thinklet.app.lifelog",
+          "class-name": "ai.fd.thinklet.app.lifelog.MainActivity",
+          "action-name": "MAIN",
+          "extras": [
+            {
+              "key-name": "longSide",
+              "key-type": "int",
+              "key-value": 1440
+            },
+            {
+              "key-name": "shortSide",
+              "key-type": "int",
+              "key-value": 1080
+            },
+            {
+              "key-name": "intervalSeconds",
+              "key-type": "int",
+              "key-value": 120
+            },
+            {
+              "key-name": "enabledMic",
+              "key-value": "false"
+            },
+            {
+              "key-name": "httpUploadEnabled",
+              "key-value": "true"
+            },
+            {
+              "key-name": "httpUploadUrl",
+              "key-value": "http://lab.tokumaru.work:3000/upload"
+            },
+            {
+              "key-name": "httpUploadApiKey",
+              "key-value": "0197c028-6696-70b1-a7ec-2e39205b5150"
+            }
+          ],
+          "flags": ["FLAG_ACTIVITY_NEW_TASK", "FLAG_ACTIVITY_CLEAR_TASK"]
+        }
+      }
+    }
+  ]
+}

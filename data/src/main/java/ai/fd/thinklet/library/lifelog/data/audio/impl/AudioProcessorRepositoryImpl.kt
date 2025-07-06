@@ -2,6 +2,7 @@ package ai.fd.thinklet.library.lifelog.data.audio.impl
 
 import ai.fd.thinklet.library.lifelog.data.audio.AudioProcessorRepository
 import ai.fd.thinklet.library.lifelog.data.audio.Mp3Encoder
+import ai.fd.thinklet.library.lifelog.data.http.HttpUploadRepository
 import ai.fd.thinklet.library.lifelog.data.network.NetworkRepository
 import ai.fd.thinklet.library.lifelog.data.s3.S3UploadRepository
 import ai.fd.thinklet.library.lifelog.data.upload.UploadQueueRepository
@@ -20,6 +21,7 @@ class AudioProcessorRepositoryImpl @Inject constructor(
     private val context: Context,
     private val networkRepository: NetworkRepository,
     private val s3UploadRepository: S3UploadRepository,
+    private val httpUploadRepository: HttpUploadRepository,
     private val uploadQueueRepository: UploadQueueRepository
 ) : AudioProcessorRepository {
 
@@ -45,8 +47,27 @@ class AudioProcessorRepositoryImpl @Inject constructor(
             if (conversionResult.isSuccess) {
                 Log.i(TAG, "Successfully converted WAV to AAC (.mp3): ${mp3File.name} (${mp3File.length()} bytes)")
                 
-                // S3アップロード処理（S3設定が存在する場合のみ）
-                if (s3UploadRepository.isConfigured()) {
+                // HTTPアップロード処理（HTTP設定が存在する場合）
+                if (httpUploadRepository.isConfigured()) {
+                    if (networkRepository.isWifiConnected()) {
+                        // WiFi接続中の場合は即座にアップロード
+                        httpUploadRepository.uploadFile(mp3File)
+                            .onSuccess { response ->
+                                Log.i(TAG, "Audio file uploaded via HTTP: $response")
+                            }
+                            .onFailure { error ->
+                                Log.w(TAG, "Failed to upload audio file via HTTP, adding to queue", error)
+                                // アップロードに失敗した場合はキューに追加
+                                uploadQueueRepository.enqueueFile(mp3File)
+                            }
+                    } else {
+                        // WiFi未接続の場合はキューに追加
+                        Log.d(TAG, "Not connected to WiFi, adding audio to upload queue")
+                        uploadQueueRepository.enqueueFile(mp3File)
+                    }
+                }
+                // S3アップロード処理（S3設定が存在する場合、HTTPが設定されていない場合のみ）
+                else if (s3UploadRepository.isConfigured()) {
                     if (networkRepository.isWifiConnected()) {
                         // WiFi接続中の場合は即座にアップロード
                         s3UploadRepository.uploadFile(mp3File, "audio")
@@ -66,7 +87,7 @@ class AudioProcessorRepositoryImpl @Inject constructor(
                         uploadQueueRepository.enqueueFile(mp3File)
                     }
                 } else {
-                    Log.d(TAG, "S3 upload not configured - audio file saved locally: ${mp3File.name}")
+                    Log.d(TAG, "Upload not configured - audio file saved locally: ${mp3File.name}")
                 }
                 
                 // コールバック通知

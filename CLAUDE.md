@@ -50,6 +50,15 @@ adb push keyConfigs/2592_1944_withMic.json /sdcard/Android/data/ai.fd.thinklet.a
 
 # 1440x1080 with S3 upload and custom storage path (edit S3 credentials first)
 adb push keyConfigs/1440_1080_withS3.json /sdcard/Android/data/ai.fd.thinklet.app.launcher/files/key_config.json && adb reboot
+
+# 1440x1080 with HTTP upload (edit URL and API key first)
+adb push keyConfigs/1440_1080_withHttp.json /sdcard/Android/data/ai.fd.thinklet.app.launcher/files/key_config.json && adb reboot
+
+# 2592x1944 with microphone and HTTP upload (edit URL and API key first)
+adb push keyConfigs/2592_1944_withMic_withHttp.json /sdcard/Android/data/ai.fd.thinklet.app.launcher/files/key_config.json && adb reboot
+
+# 1440x1080 with HTTP upload and custom storage path (edit URL and API key first)
+adb push keyConfigs/1440_1080_withHttp_customStorage.json /sdcard/Android/data/ai.fd.thinklet.app.launcher/files/key_config.json && adb reboot
 ```
 
 ### Device Interaction
@@ -96,6 +105,9 @@ The app accepts launch parameters via Android Intent extras:
 | `shortSide` | String/Int | 480 | Image short side resolution |
 | `intervalSeconds` | String/Int | 300 | Capture interval (minimum 10 seconds) |
 | `enabledMic` | String/Boolean | false | Enable microphone recording |
+| `httpUploadEnabled` | String/Boolean | false | Enable HTTP upload (prioritized over S3) |
+| `httpUploadUrl` | String | null | HTTP upload endpoint URL |
+| `httpUploadApiKey` | String | null | API key for HTTP upload (sent as x-api-key header) |
 | `s3Enabled` | String/Boolean | false | Enable S3 upload |
 | `s3BucketName` | String | null | S3 bucket name |
 | `s3Region` | String | null | AWS region (e.g., "ap-northeast-1") |
@@ -113,8 +125,28 @@ Files are saved to: `/DCIM/lifelog/YYYYMMDD/` (or custom `storagePath` if specif
 - **File rotation**: Max 1GB per audio file before rotating to new files
 - **External storage**: Supports SD card storage via `storagePath` parameter
 
+### HTTP Upload (Optional, Prioritized)
+When HTTP upload is enabled, both JPEG and audio files are uploaded via multipart/form-data:
+- **Upload format**: Files are sent as `file` form field with appropriate Content-Type
+- **Authentication**: API key is sent via `x-api-key` header
+- **Priority**: HTTP upload takes precedence over S3 when both are configured
+- **WiFi-only uploads**: Files are only uploaded when connected to WiFi (no mobile data usage)
+- **Upload queue**: Files captured without WiFi are queued and uploaded when WiFi becomes available
+- **Offline resilience**: Local files are preserved even if upload fails
+- **Queue persistence**: Upload queue survives app restarts
+
+Example HTTP upload configuration:
+```bash
+# Configure key_config.json with HTTP upload parameters
+{
+  "httpUploadEnabled": "true",
+  "httpUploadUrl": "http://your-server.com/upload",
+  "httpUploadApiKey": "your-api-key"
+}
+```
+
 ### S3 Storage (Optional)
-When S3 is enabled, both JPEG and MP3 files are automatically uploaded to:
+When S3 is enabled (and HTTP is not), both JPEG and MP3 files are automatically uploaded to:
 - **JPEG path**: `lifelog/YYYY/MM/DD/YYYY-MM-DD-HHMMSS.jpg`
 - **Audio path**: `audio/YYYY/MM/DD/YYYY-MM-DD-HHMMSS.m4a`
 - **S3-compatible services**: Supports AWS S3, MinIO, Cloudflare R2, and other S3-compatible storage

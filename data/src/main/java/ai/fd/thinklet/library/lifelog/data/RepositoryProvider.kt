@@ -8,6 +8,8 @@ import ai.fd.thinklet.library.lifelog.data.file.FileSelectorRepository
 import ai.fd.thinklet.library.lifelog.data.file.impl.FileSelectorRepositoryImpl
 import ai.fd.thinklet.library.lifelog.data.gif.GifEncoderRepository
 import ai.fd.thinklet.library.lifelog.data.gif.impl.GifEncoderRepositoryImpl
+import ai.fd.thinklet.library.lifelog.data.http.HttpUploadRepository
+import ai.fd.thinklet.library.lifelog.data.http.impl.HttpUploadRepositoryImpl
 import ai.fd.thinklet.library.lifelog.data.jpeg.JpegSaverRepository
 import ai.fd.thinklet.library.lifelog.data.jpeg.impl.JpegSaverRepositoryImpl
 import ai.fd.thinklet.library.lifelog.data.network.NetworkRepository
@@ -86,22 +88,29 @@ class RepositoryProvider {
 
     @Provides
     @Singleton
+    fun provideHttpUpload(): HttpUploadRepository = HttpUploadRepositoryImpl()
+
+    @Provides
+    @Singleton
     fun provideUploadQueue(
         @ApplicationContext context: Context,
         networkRepository: NetworkRepository,
-        s3UploadRepository: S3UploadRepository
-    ): UploadQueueRepository = UploadQueueRepositoryImpl(context, networkRepository, s3UploadRepository)
+        s3UploadRepository: S3UploadRepository,
+        httpUploadRepository: HttpUploadRepository
+    ): UploadQueueRepository = UploadQueueRepositoryImpl(context, networkRepository, s3UploadRepository, httpUploadRepository)
 
     @Provides
     @Singleton
     fun provideJpegSaver(
         fileSelectorRepository: FileSelectorRepository,
         s3UploadRepository: S3UploadRepository,
+        httpUploadRepository: HttpUploadRepository,
         networkRepository: NetworkRepository,
         uploadQueueRepository: UploadQueueRepository
     ): JpegSaverRepository = JpegSaverRepositoryImpl(
         fileSelectorRepository, 
         s3UploadRepository, 
+        httpUploadRepository,
         networkRepository, 
         uploadQueueRepository
     )
@@ -112,11 +121,13 @@ class RepositoryProvider {
         @ApplicationContext context: Context,
         networkRepository: NetworkRepository,
         s3UploadRepository: S3UploadRepository,
+        httpUploadRepository: HttpUploadRepository,
         uploadQueueRepository: UploadQueueRepository
     ): AudioProcessorRepository = AudioProcessorRepositoryImpl(
         context,
         networkRepository,
         s3UploadRepository,
+        httpUploadRepository,
         uploadQueueRepository
     )
 }

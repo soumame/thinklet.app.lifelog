@@ -1,5 +1,6 @@
 package ai.fd.thinklet.library.lifelog.data.upload.impl
 
+import ai.fd.thinklet.library.lifelog.data.http.HttpUploadRepository
 import ai.fd.thinklet.library.lifelog.data.network.NetworkRepository
 import ai.fd.thinklet.library.lifelog.data.s3.S3UploadRepository
 import ai.fd.thinklet.library.lifelog.data.upload.UploadQueueRepository
@@ -16,7 +17,8 @@ import javax.inject.Singleton
 class UploadQueueRepositoryImpl @Inject constructor(
     private val context: Context,
     private val networkRepository: NetworkRepository,
-    private val s3UploadRepository: S3UploadRepository
+    private val s3UploadRepository: S3UploadRepository,
+    private val httpUploadRepository: HttpUploadRepository
 ) : UploadQueueRepository {
 
     companion object {
@@ -63,8 +65,8 @@ class UploadQueueRepositoryImpl @Inject constructor(
             return@withContext
         }
 
-        if (!s3UploadRepository.isConfigured()) {
-            Log.d(TAG, "S3 not configured, skipping upload processing")
+        if (!httpUploadRepository.isConfigured() && !s3UploadRepository.isConfigured()) {
+            Log.d(TAG, "Neither HTTP nor S3 upload configured, skipping upload processing")
             return@withContext
         }
 
@@ -78,30 +80,45 @@ class UploadQueueRepositoryImpl @Inject constructor(
 
         filesToUpload.forEach { file ->
             try {
-                // ファイル拡張子に基づいてS3キープレフィックスを決定
-                val keyPrefix = when (file.extension.lowercase()) {
-                    "mp3", "m4a", "aac", "wav" -> "audio"
-                    "jpg", "jpeg", "png", "gif" -> "" // 画像は既存のロジックでlifelog/YYYY/MM/DDパスが使用される
-                    else -> ""
+                // HTTPアップロードが優先
+                if (httpUploadRepository.isConfigured()) {
+                    httpUploadRepository.uploadFile(file)
+                        .onSuccess { response ->
+                            Log.i(TAG, "Successfully uploaded via HTTP: ${file.name}")
+                            removeFile(file)
+                        }
+                        .onFailure { error ->
+                            Log.w(TAG, "Failed to upload via HTTP: ${file.name}", error)
+                            // ファイルはキューに残しておく（次回WiFi接続時に再試行）
+                        }
                 }
-                
-                val uploadResult = if (keyPrefix.isNotEmpty()) {
-                    s3UploadRepository.uploadFile(file, keyPrefix)
-                } else {
-                    s3UploadRepository.uploadFile(file)
+                // S3アップロード（HTTPが設定されていない場合）
+                else if (s3UploadRepository.isConfigured()) {
+                    // ファイル拡張子に基づいてS3キープレフィックスを決定
+                    val keyPrefix = when (file.extension.lowercase()) {
+                        "mp3", "m4a", "aac", "wav" -> "audio"
+                        "jpg", "jpeg", "png", "gif" -> "" // 画像は既存のロジックでlifelog/YYYY/MM/DDパスが使用される
+                        else -> ""
+                    }
+                    
+                    val uploadResult = if (keyPrefix.isNotEmpty()) {
+                        s3UploadRepository.uploadFile(file, keyPrefix)
+                    } else {
+                        s3UploadRepository.uploadFile(file)
+                    }
+                    
+                    uploadResult
+                        .onSuccess { s3Url ->
+                            Log.i(TAG, "Successfully uploaded to S3: ${file.name} to $s3Url")
+                            removeFile(file)
+                            // アップロード成功後のファイル削除ポリシーの統一
+                            // 現在は画像も音声もローカルファイルを保持
+                        }
+                        .onFailure { error ->
+                            Log.w(TAG, "Failed to upload to S3: ${file.name}", error)
+                            // ファイルはキューに残しておく（次回WiFi接続時に再試行）
+                        }
                 }
-                
-                uploadResult
-                    .onSuccess { s3Url ->
-                        Log.i(TAG, "Successfully uploaded: ${file.name} to $s3Url")
-                        removeFile(file)
-                        // アップロード成功後のファイル削除ポリシーの統一
-                        // 現在は画像も音声もローカルファイルを保持
-                    }
-                    .onFailure { error ->
-                        Log.w(TAG, "Failed to upload: ${file.name}", error)
-                        // ファイルはキューに残しておく（次回WiFi接続時に再試行）
-                    }
             } catch (e: Exception) {
                 Log.e(TAG, "Error uploading file: ${file.name}", e)
             }
