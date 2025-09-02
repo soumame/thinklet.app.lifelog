@@ -12,6 +12,8 @@ import ai.fd.thinklet.library.lifelog.data.http.HttpUploadRepository
 import ai.fd.thinklet.library.lifelog.data.http.impl.HttpUploadRepositoryImpl
 import ai.fd.thinklet.library.lifelog.data.jpeg.JpegSaverRepository
 import ai.fd.thinklet.library.lifelog.data.jpeg.impl.JpegSaverRepositoryImpl
+import ai.fd.thinklet.library.lifelog.data.location.LocationRepository
+import ai.fd.thinklet.library.lifelog.data.location.impl.LocationRepositoryImpl
 import ai.fd.thinklet.library.lifelog.data.network.NetworkRepository
 import ai.fd.thinklet.library.lifelog.data.network.impl.NetworkRepositoryImpl
 import ai.fd.thinklet.library.lifelog.data.s3.S3UploadRepository
@@ -79,6 +81,12 @@ class RepositoryProvider {
 
     @Provides
     @Singleton
+    fun provideLocation(
+        @ApplicationContext context: Context
+    ): LocationRepository = LocationRepositoryImpl(context)
+
+    @Provides
+    @Singleton
     fun provideNetwork(@ApplicationContext context: Context): NetworkRepository = 
         NetworkRepositoryImpl(context)
 
@@ -106,13 +114,15 @@ class RepositoryProvider {
         s3UploadRepository: S3UploadRepository,
         httpUploadRepository: HttpUploadRepository,
         networkRepository: NetworkRepository,
-        uploadQueueRepository: UploadQueueRepository
+        uploadQueueRepository: UploadQueueRepository,
+        locationRepository: LocationRepository
     ): JpegSaverRepository = JpegSaverRepositoryImpl(
         fileSelectorRepository, 
         s3UploadRepository, 
         httpUploadRepository,
         networkRepository, 
-        uploadQueueRepository
+        uploadQueueRepository,
+        locationRepository
     )
 
     @Provides

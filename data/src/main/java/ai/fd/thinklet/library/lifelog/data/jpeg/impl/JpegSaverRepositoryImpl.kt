@@ -4,6 +4,7 @@ import ai.fd.thinklet.library.lifelog.data.file.FileSelectorRepository
 import ai.fd.thinklet.library.lifelog.data.http.HttpUploadRepository
 import ai.fd.thinklet.library.lifelog.data.jpeg.JpegSaverCallback
 import ai.fd.thinklet.library.lifelog.data.jpeg.JpegSaverRepository
+import ai.fd.thinklet.library.lifelog.data.location.LocationRepository
 import ai.fd.thinklet.library.lifelog.data.network.NetworkRepository
 import ai.fd.thinklet.library.lifelog.data.s3.S3UploadRepository
 import ai.fd.thinklet.library.lifelog.data.upload.UploadQueueRepository
@@ -17,6 +18,7 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import javax.inject.Inject
 
 class JpegSaverRepositoryImpl @Inject constructor(
@@ -24,13 +26,15 @@ class JpegSaverRepositoryImpl @Inject constructor(
     private val s3UploadRepository: S3UploadRepository,
     private val httpUploadRepository: HttpUploadRepository,
     private val networkRepository: NetworkRepository,
-    private val uploadQueueRepository: UploadQueueRepository
+    private val uploadQueueRepository: UploadQueueRepository,
+    private val locationRepository: LocationRepository
 ) : JpegSaverRepository {
 
     companion object {
         private const val TAG = "JpegSaverRepositoryImpl"
         private const val DATE_FORMAT = "yyyy-MM-dd-HHmmss"
         private const val FILE_EXTENSION = ".jpg"
+        private const val MIN_LOCATION_ACCURACY = 50f // 位置情報の精度しきい値（メートル）
     }
 
     private var savedCallback: JpegSaverCallback? = null
@@ -45,8 +49,11 @@ class JpegSaverRepositoryImpl @Inject constructor(
                 outputStream.flush()
             }
             
-            // EXIFメタデータを追加
-            addExifMetadata(file)
+            // 位置情報を取得
+            val location = locationRepository.getCurrentLocation().getOrNull()
+            
+            // EXIFメタデータを追加（位置情報を含む）
+            addExifMetadata(file, location)
             
             Log.i(TAG, "JPEG saved successfully: ${file.absolutePath}")
             
@@ -104,10 +111,13 @@ class JpegSaverRepositoryImpl @Inject constructor(
     }
 
     /**
-     * YYYY-MM-DD-HHMMSS.jpg形式のファイル名でJPEGファイルを作成
+     * YYYY-MM-DD-HHMMSS.jpg形式のファイル名でJPEGファイルを作成（UTC時刻）
      */
     private fun createJpegFile(): File {
-        val timestamp = SimpleDateFormat(DATE_FORMAT, Locale.getDefault()).format(Date())
+        val utcFormat = SimpleDateFormat(DATE_FORMAT, Locale.getDefault()).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+        val timestamp = utcFormat.format(Date())
         val filename = "$timestamp$FILE_EXTENSION"
         
         // FileSelectorRepositoryの既存ロジックを利用してディレクトリを取得
@@ -126,15 +136,38 @@ class JpegSaverRepositoryImpl @Inject constructor(
     /**
      * JPEGファイルにEXIFメタデータを追加
      */
-    private fun addExifMetadata(file: File) {
+    private fun addExifMetadata(file: File, location: android.location.Location?) {
         try {
             val exif = ExifInterface(file.absolutePath)
             
-            // 撮影日時を設定（現在時刻）
-            val dateTime = SimpleDateFormat("yyyy:MM:dd HH:mm:ss", Locale.getDefault()).format(Date())
-            exif.setAttribute(ExifInterface.TAG_DATETIME, dateTime)
-            exif.setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, dateTime)
-            exif.setAttribute(ExifInterface.TAG_DATETIME_DIGITIZED, dateTime)
+            // 現在時刻をUTCとローカルで取得
+            val now = Date()
+            
+            // UTC時刻を設定
+            val utcFormat = SimpleDateFormat("yyyy:MM:dd HH:mm:ss", Locale.getDefault()).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val utcDateTime = utcFormat.format(now)
+            
+            // 基本的な日時タグにはUTC時刻を設定（API要件に従う）
+            exif.setAttribute(ExifInterface.TAG_DATETIME, utcDateTime)
+            exif.setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, utcDateTime)
+            exif.setAttribute(ExifInterface.TAG_DATETIME_DIGITIZED, utcDateTime)
+            
+            // オフセット時間を計算して設定（UTC基準なので+00:00）
+            val offsetString = "+00:00"
+            
+            // オフセット時間タグを設定（EXIF 2.31以降）
+            exif.setAttribute(ExifInterface.TAG_OFFSET_TIME, offsetString)
+            exif.setAttribute(ExifInterface.TAG_OFFSET_TIME_ORIGINAL, offsetString)
+            exif.setAttribute(ExifInterface.TAG_OFFSET_TIME_DIGITIZED, offsetString)
+            
+            // ローカルタイムゾーンのオフセットを別途保存（カスタムタグまたはユーザーコメントとして）
+            val localOffsetMinutes = TimeZone.getDefault().getOffset(now.time) / 60000
+            val localOffsetHours = localOffsetMinutes / 60
+            val localOffsetMins = Math.abs(localOffsetMinutes % 60)
+            val localOffsetString = String.format("%+03d:%02d", localOffsetHours, localOffsetMins)
+            exif.setAttribute(ExifInterface.TAG_USER_COMMENT, "LocalTimezoneOffset:$localOffsetString")
             
             // カメラ情報を設定
             exif.setAttribute(ExifInterface.TAG_MAKE, "THINKLET")
@@ -145,9 +178,43 @@ class JpegSaverRepositoryImpl @Inject constructor(
             exif.setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL.toString())
             exif.setAttribute(ExifInterface.TAG_COLOR_SPACE, ExifInterface.COLOR_SPACE_S_RGB.toString())
             
-            // GPS情報（今回は設定しないが、将来的に位置情報を追加可能）
-            // exif.setAttribute(ExifInterface.TAG_GPS_LATITUDE, latitude)
-            // exif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE, longitude)
+            // GPS情報を追加（精度が十分高い場合のみ）
+            if (location != null && location.hasAccuracy() && location.accuracy <= MIN_LOCATION_ACCURACY) {
+                // 緯度を度分秒形式に変換して設定
+                val latRef = if (location.latitude >= 0) "N" else "S"
+                exif.setAttribute(ExifInterface.TAG_GPS_LATITUDE_REF, latRef)
+                exif.setAttribute(ExifInterface.TAG_GPS_LATITUDE, convertToDMS(Math.abs(location.latitude)))
+                
+                // 経度を度分秒形式に変換して設定
+                val lonRef = if (location.longitude >= 0) "E" else "W"
+                exif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF, lonRef)
+                exif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE, convertToDMS(Math.abs(location.longitude)))
+                
+                // 高度情報（メートル単位）
+                if (location.hasAltitude()) {
+                    val altRef = if (location.altitude >= 0) 0 else 1
+                    exif.setAttribute(ExifInterface.TAG_GPS_ALTITUDE_REF, altRef.toString())
+                    exif.setAttribute(ExifInterface.TAG_GPS_ALTITUDE, "${Math.abs(location.altitude).toLong()}/1")
+                }
+                
+                // GPS時刻をUTCで設定
+                val gpsTimeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }
+                val gpsTime = gpsTimeFormat.format(Date(location.time))
+                exif.setAttribute(ExifInterface.TAG_GPS_TIMESTAMP, gpsTime)
+                
+                // GPS日付をUTCで設定
+                val gpsDateFormat = SimpleDateFormat("yyyy:MM:dd", Locale.getDefault()).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }
+                val gpsDate = gpsDateFormat.format(Date(location.time))
+                exif.setAttribute(ExifInterface.TAG_GPS_DATESTAMP, gpsDate)
+                
+                Log.d(TAG, "GPS info added: lat=${location.latitude}, lon=${location.longitude}, alt=${location.altitude}, accuracy=${location.accuracy}m")
+            } else if (location != null) {
+                Log.d(TAG, "GPS info not added due to low accuracy: ${location.accuracy}m (threshold: ${MIN_LOCATION_ACCURACY}m)")
+            }
             
             exif.saveAttributes()
             Log.d(TAG, "EXIF metadata added to: ${file.absolutePath}")
@@ -155,5 +222,19 @@ class JpegSaverRepositoryImpl @Inject constructor(
             Log.w(TAG, "Failed to add EXIF metadata", e)
             // EXIFの追加に失敗してもファイル保存は成功とみなす
         }
+    }
+    
+    /**
+     * 十進度数を度分秒形式（DMS）に変換
+     * @param decimal 十進度数
+     * @return "度/1,分/1,秒/1000" 形式の文字列
+     */
+    private fun convertToDMS(decimal: Double): String {
+        val degrees = decimal.toInt()
+        val minutesDecimal = (decimal - degrees) * 60
+        val minutes = minutesDecimal.toInt()
+        val seconds = ((minutesDecimal - minutes) * 60 * 1000).toInt()  // 秒を1/1000精度で保存
+        
+        return "$degrees/1,$minutes/1,$seconds/1000"
     }
 }
